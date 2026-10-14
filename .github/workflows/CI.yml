@@ -63,6 +63,6 @@ jobs:
         shell: julia --project=docs --color=yes {0}
         run: |
           using Documenter: DocMeta, doctest
-          using Varia
-          DocMeta.setdocmeta!(Varia, :DocTestSetup, :(using Varia); recursive=true)
-          doctest(Varia)
+          using Assimilate
+          DocMeta.setdocmeta!(Assimilate, :DocTestSetup, :(using Assimilate); recursive=true)
+          doctest(Assimilate)

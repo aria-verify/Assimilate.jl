@@ -1,14 +1,14 @@
-using Varia
+using Assimilate
 using Documenter
 
-DocMeta.setdocmeta!(Varia, :DocTestSetup, :(using Varia); recursive=true)
+DocMeta.setdocmeta!(Assimilate, :DocTestSetup, :(using Assimilate); recursive=true)
 
 makedocs(;
-    modules=[Varia],
+    modules=[Assimilate],
     authors="Matt Graham <m.graham@ucl.ac.uk> and contributors",
-    sitename="Varia.jl",
+    sitename="Assimilate.jl",
     format=Documenter.HTML(;
-        canonical="https://aria-verify.github.io/Varia.jl",
+        canonical="https://aria-verify.github.io/Assimilate.jl",
         edit_link="main",
         assets=String[],
     ),
@@ -18,6 +18,6 @@ makedocs(;
 )
 
 deploydocs(;
-    repo="github.com/aria-verify/Varia.jl",
+    repo="github.com/aria-verify/Assimilate.jl",
     devbranch="main",
 )

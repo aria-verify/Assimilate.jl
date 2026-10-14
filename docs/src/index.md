@@ -1,14 +1,14 @@
 ```@meta
-CurrentModule = Varia
+CurrentModule = Assimilate
 ```
 
-# Varia
+# Assimilate
 
-Documentation for [Varia](https://github.com/aria-verify/Varia.jl).
+Documentation for [Assimilate](https://github.com/aria-verify/Assimilate.jl).
 
 ```@index
 ```
 
 ```@autodocs
-Modules = [Varia]
+Modules = [Assimilate]
 ```
