@@ -1,3 +1,11 @@
+"""
+Non-stationary Kuramoto-Sivashinksy state space model.
+
+Adapted from Kuramoto-Sivashinksy model example in Oceananigans model interface documentation
+
+https://github.com/CliMA/Oceananigans.jl/blob/fec351f0/docs/src/developer_docs/model_interface.md
+"""
+
 using LinearAlgebra
 
 using Oceananigans
