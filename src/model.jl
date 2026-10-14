@@ -134,9 +134,12 @@ vectors `y_seq` and control variable vectors `v_seq` for `model` given a precomp
 sequence of observation mean vectors `ȳ_seq`.
 """
 function negative_log_density(y_seq, ȳ_seq, v_seq, model)
-    ℓ = sum((t, v) -> v' * control_covariance(model, t) \ v, enumerate(v_seq)) / 2
-    for t in 1:length(y_seq)
-        d = y_seq[t] - ȳ_seq[t]
+    ℓ = 0.0
+    for (t, v) in enumerate(v_seq)
+        ℓ += v' * (control_covariance(model, t) \ v) / 2
+    end
+    for (t, (y, ȳ)) in enumerate(zip(y_seq, ȳ_seq))
+        d = y - ȳ
         ℓ += d' * (observation_covariance(model, t) \ d) / 2
     end
     return ℓ
