@@ -1,6 +1,10 @@
 [deps]
 Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+Assimilate = "15a46a31-4522-4656-8268-a5b080e5f6ea"
+
+[sources]
+Assimilate = {path = ".."}
 
 [compat]
 Aqua = "0.8.16"
