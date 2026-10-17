@@ -74,10 +74,10 @@ function gauss_newton_product!(q_seq, ȳ_seq, dȳ_seq, model, dmodel, v_seq, x_s
     for t in 1:length(dȳ_seq)
         dȳ_seq[t] .= observation_covariance(model, t) \ dȳ_seq[t]
     end
+    adjoint!(ȳ_seq, q_seq, model, dmodel, v_seq, x_seq, dȳ_seq)
     for r in 1:length(v_seq)
         q_seq[r] .+= control_covariance(model, r) \ p_seq[r]
     end
-    adjoint!(ȳ_seq, q_seq, model, dmodel, v_seq, x_seq, dȳ_seq)
     return nothing
 end
 
@@ -95,7 +95,7 @@ function solve_for_increment!(
         dȳ_seq[t] .= observation_covariance(model, t) \ dȳ_seq[t]
     end
     for r in 1:length(v_seq)
-        r_seq[r] .= control_covariance(model, r) \ v_seq[r]
+        r_seq[r] .= -control_covariance(model, r) \ v_seq[r]
     end
     adjoint!(ȳ_seq, r_seq, model, dmodel, v_seq, x_seq, dȳ_seq)
     p_seq .= r_seq
