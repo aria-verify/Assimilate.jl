@@ -1,8 +1,9 @@
 using Enzyme
 
-struct Incremental4DVar{X,V,Y,M} <: AbstractAssimilationMethod
+struct Incremental4DVar{T,V,X,Y,M} <: AbstractAssimilationMethod
     inner_iterations::Int
     outer_iterations::Int
+    inner_tolerance::T
     x_seq::Vector{X}
     ȳ_seq::Vector{Y}
     dv_seq::Vector{V}
@@ -82,6 +83,7 @@ function gauss_newton_product!(q_seq, ȳ_seq, dȳ_seq, model, dmodel, v_seq, x_s
 end
 
 inner(v_a::Vector{T}, v_b::Vector{T}) where {T} = sum(((a, b),) -> a' * b, zip(v_a, v_b))
+axpy_seq!(y, a, x) = foreach((yi, xi) -> (yi .+= a .* xi), y, x)
 
 function solve_for_increment!(
     method::Incremental4DVar, dv_seq, model, v_seq, x_seq, ȳ_seq, y_seq
@@ -98,15 +100,16 @@ function solve_for_increment!(
         r_seq[r] .= -control_covariance(model, r) \ v_seq[r]
     end
     adjoint!(ȳ_seq, r_seq, model, dmodel, v_seq, x_seq, dȳ_seq)
-    p_seq .= r_seq
+    foreach(copyto!, p_seq, r_seq)
+    rr = inner(r_seq, r_seq)
     for _ in 1:method.inner_iterations
         gauss_newton_product!(q_seq, ȳ_seq, dȳ_seq, model, dmodel, v_seq, x_seq, p_seq)
-        α = inner(r_seq, r_seq) / inner(p_seq, q_seq)
-        dv_seq .+= α .* p_seq
-        r_new_seq .= r_seq .- α * q_seq
-        β = inner(r_new_seq, r_new_seq) / inner(r_seq, r_seq)
-        p_seq .*= β
-        p_seq .+= r_new_seq
-        r_seq .= r_new_seq
+        α = rr / inner(p_seq, q_seq)
+        axpy_seq!(dv_seq, α, p_seq)
+        axpy_seq!(r_seq, -α, q_seq)
+        rr_new = inner(r_seq, r_seq)
+        sqrt(rr_new) < method.inner_tolerance && break
+        foreach((p, r) -> (p .= r .+ (rr_new / rr) .* p), p_seq, r_seq)
+        rr = rr_new
     end
 end
