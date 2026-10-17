@@ -229,5 +229,5 @@ function Assimilate.observation_covariance(model::NSKSStateSpaceModel{M,T}, t) w
 end
 
 function Assimilate.control_covariance(model::NSKSStateSpaceModel{M,T}, t) where {M,T}
-    return UniformScaling{T}(model.observation_noise_std^2)
+    return UniformScaling{T}(1.0)
 end
