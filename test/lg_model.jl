@@ -1,0 +1,136 @@
+using LinearAlgebra
+using PDMats
+
+using Assimilate
+
+struct LinearGaussianModel{
+    T,
+    S<:AbstractMatrix{T},
+    O<:AbstractMatrix{T},
+    M<:AbstractVector{T},
+    I<:AbstractPDMat{T},
+    N<:AbstractPDMat{T},
+    R<:AbstractPDMat{T},
+} <: Assimilate.AbstractStateSpaceModel
+    state::Vector{T}
+    state_buffer::Vector{T}
+    state_transition_matrix::S
+    observation_matrix::O
+    initial_state_mean::M
+    initial_state_covariance::I
+    state_noise_covariance::N
+    observation_noise_covariance::R
+    n_timestep_per_obs::Int
+end
+
+function LinearGaussianModel(
+    state_transition_matrix::AbstractMatrix{T},
+    observation_matrix::AbstractMatrix{T},
+    initial_state_mean::AbstractVector{T},
+    initial_state_covariance::AbstractMatrix{T},
+    state_noise_covariance::AbstractMatrix{T},
+    observation_noise_covariance::AbstractMatrix{T},
+    n_timestep_per_obs::Int=1,
+) where {T}
+    state_dimension = size(state_transition_matrix, 1)
+    @assert size(state_transition_matrix, 2) == state_dimension
+    @assert size(observation_matrix, 2) == state_dimension
+    @assert length(initial_state_mean) == state_dimension
+    @assert size(initial_state_covariance) == (state_dimension, state_dimension)
+    @assert size(state_noise_covariance) == (state_dimension, state_dimension)
+    state = Vector{T}(undef, state_dimension)
+    state_buffer = Vector{T}(undef, state_dimension)
+    return LinearGaussianModel(
+        state,
+        state_buffer,
+        state_transition_matrix,
+        observation_matrix,
+        initial_state_mean,
+        initial_state_covariance,
+        state_noise_covariance,
+        observation_noise_covariance,
+        n_timestep_per_obs,
+    )
+end
+
+function stochastically_driven_dsho_model_parameters(δ=0.2, ω=1.0, Q=2.0, σ=0.5)
+    β = sqrt(Q^2 - 1 / 4)
+    state_transition_matrix =
+        exp(-ω * δ / 2Q) * [
+            cos(ω * β * δ / Q) + sin(ω * β * δ / Q) / 2β Q * sin(ω * β * δ / Q) / (ω * β)
+            -Q * ω * sin(ω * δ * β / Q) / β cos(ω * δ * β / Q) - sin(ω * δ * β / Q) / 2β
+        ]
+    observation_matrix = ScalMat(2, 1.0)
+    initial_state_mean = zeros(2)
+    initial_state_covariance = ScalMat(2, 1.0)
+    state_noise_covariance = PDMat(
+        Q *
+        exp(-ω * δ / Q) *
+        [
+            ((cos(2ω * δ * β / Q) - 1) - 2β * sin(2ω * δ * β / Q) + 4β^2 * (exp(ω * δ / Q) - 1)) / (8ω^3 * β^2) Q * sin(ω * δ * β / Q)^2 / (2ω^2 * β^2)
+            Q * sin(ω * δ * β / Q)^2 / (2ω^2 * β^2) ((cos(2ω * δ * β / Q) - 1) + 2β * sin(2ω * δ * β / Q) + 4β^2 * (exp(ω * δ / Q) - 1)) / (8ω * β^2)
+        ],
+    )
+    observation_noise_covariance = ScalMat(2, σ^2)
+    return LinearGaussianModel(
+        state_transition_matrix,
+        observation_matrix,
+        initial_state_mean,
+        initial_state_covariance,
+        state_noise_covariance,
+        observation_noise_covariance,
+    )
+end
+
+function Assimilate.state(model::LinearGaussianModel)
+    return model.state
+end
+
+function Assimilate.restore_state!(model::LinearGaussianModel, state)
+    model.state ≢ state && (model.state .= state)
+    return nothing
+end
+
+function Assimilate.step!(model::LinearGaussianModel, t)
+    for _ in 1:model.n_timestep_per_obs
+        mul!(model.state_buffer, model.state_transition_matrix, model.state, 1.0, 0.0)
+        model.state .= model.state_buffer
+    end
+    return nothing
+end
+
+function Assimilate.observation_dimension(model::LinearGaussianModel, t)
+    return size(model.observation_matrix, 1)
+end
+
+function Assimilate.control_dimension(model::LinearGaussianModel, t)
+    if t == 1
+        return size(model.initial_state_covariance, 1)
+    else
+        return size(model.state_noise_covariance, 1)
+    end
+end
+
+function Assimilate.update!(model::LinearGaussianModel, v, t)
+    if t == 1
+        unwhiten!(model.state, model.initial_state_covariance, v)
+        model.state .+= model.initial_state_mean
+    else
+        unwhiten!(model.state_buffer, model.state_noise_covariance, v)
+        model.state .+= model.state_buffer
+    end
+    return nothing
+end
+
+function Assimilate.observe!(y, model::LinearGaussianModel, t)
+    mul!(y, model.observation_matrix, model.state)
+    return nothing
+end
+
+function Assimilate.observation_covariance(model::LinearGaussianModel{T}, t) where {T}
+    return model.observation_noise_covariance
+end
+
+function Assimilate.control_covariance(model::LinearGaussianModel{T}, t) where {T}
+    return UniformScaling{T}(1.0)
+end
