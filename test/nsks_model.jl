@@ -214,6 +214,7 @@ function Assimilate.update!(model::NSKSStateSpaceModel, v, t)
         generate!(error, model.model_error_generator, v)
         set!(field, field + error)
     end
+    update_state!(model.underlying_model)
     return nothing
 end
 
