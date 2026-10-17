@@ -87,7 +87,7 @@ sequence `v_seq` have consistent lengths and compute and return the length of th
 subwindow length.
 """
 function check_args_and_get_subwindow_length(x_seq, ȳ_seq, v_seq)
-    @assert length(x_seq) == length(v_seq)
+    !isnothing(x_seq) && @assert length(x_seq) == length(v_seq)
     subwindow_length, remainder = divrem(length(ȳ_seq), length(v_seq))
     @assert remainder == 0
     return subwindow_length
@@ -112,17 +112,33 @@ end
 Simulate a sequence of states `x_seq` and observation mean vectors `ȳ_seq` for `model`
 given a sequence of control variable vectors `v_seq`. The lengths of `x_seq` and `v_seq`
 should match, with `x_seq[t]` the model state immediately _prior_ to updating with
-control variable vector `v_seq[t]` at time index `t`. The length of `y_seq`
+control variable vector `v_seq[t]` at time index `t`. The length of `ȳ_seq`
 should be an integer multiple of the length of `v_seq` and `x_seq`, with this integer
 multiple corresponding to the subwindow length between pairs of control variable updates
 to the model state. States and observation means are written in place to `x_seq` and
-`y_seq` and `model` is updated in place.
+`ȳ_seq` and `model` is updated in place.
 """
 function simulate!(x_seq, ȳ_seq, model, v_seq)
     subwindow_length = check_args_and_get_subwindow_length(x_seq, ȳ_seq, v_seq)
     for r in 1:length(x_seq)
         t = (r - 1) * subwindow_length + 1
         x_seq[r] = deepcopy(state(model))
+        simulate_subwindow!(model, view(ȳ_seq, t:(t + subwindow_length - 1)), v_seq[r], t)
+    end
+    return nothing
+end
+
+"""
+Simulate a sequence of observation mean vectors `ȳ_seq` for `model` given a sequence of
+control variable vectors `v_seq`. The length of `ȳ_seq` should be an integer multiple of
+the length of `v_seq`, with this integer multiple corresponding to the subwindow length
+between pairs of control variable updates to the model state. Observation means are written 
+in place to `ȳ_seq` and `model` is updated in place.
+"""
+function simulate!(ȳ_seq, model, v_seq)
+    subwindow_length = check_args_and_get_subwindow_length(nothing, ȳ_seq, v_seq)
+    for r in 1:length(v_seq)
+        t = (r - 1) * subwindow_length + 1
         simulate_subwindow!(model, view(ȳ_seq, t:(t + subwindow_length - 1)), v_seq[r], t)
     end
     return nothing
