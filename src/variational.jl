@@ -17,7 +17,7 @@ end
 function assimilate!(method::Incremental4DVar, model, v_seq, y_seq)
     (; x_seq, ȳ_seq, dv_seq) = method
     for _ in 1:method.outer_iterations
-        simulate!(x_seq, ȳ_seq, v_seq, model)
+        simulate!(x_seq, ȳ_seq, model, v_seq)
         solve_for_increment!(method, dv_seq, model, v_seq, x_seq, ȳ_seq, y_seq)
         v_seq .+= dv_seq
     end
@@ -70,7 +70,7 @@ function adjoint!(ȳ_seq, dv_seq, model, dmodel, v_seq, x_seq, dȳ_seq)
 end
 
 function gauss_newton_product!(q_seq, ȳ_seq, dȳ_seq, model, dmodel, v_seq, x_seq, p_seq)
-    tangent_linear_model!(ȳ_seq, dȳ_seq, model, dmodel, v_seq, x_seq, p_seq)
+    tangent_linear_model!(ȳ_seq, dȳ_seq, model, dmodel, v_seq, p_seq, x_seq)
     for t in 1:length(dȳ_seq)
         dȳ_seq[t] .= observation_covariance(model, t) \ dȳ_seq[t]
     end
@@ -97,7 +97,7 @@ function solve_for_increment!(
     for r in 1:length(v_seq)
         r_seq[r] .= control_covariance(model, r) \ v_seq[r]
     end
-    adjoint!(ȳ_seq, r_seq, model, dmodel, x_seq, v_seq, dȳ_seq)
+    adjoint!(ȳ_seq, r_seq, model, dmodel, v_seq, x_seq, dȳ_seq)
     p_seq .= r_seq
     for _ in 1:method.inner_iterations
         gauss_newton_product!(q_seq, ȳ_seq, dȳ_seq, model, dmodel, v_seq, x_seq, p_seq)
