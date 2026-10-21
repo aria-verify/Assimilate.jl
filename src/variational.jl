@@ -96,10 +96,10 @@ function solve_for_increment!(
         dȳ_seq[t] .= y_seq[t] .- ȳ_seq[t]
         dȳ_seq[t] .= observation_covariance(model, t) \ dȳ_seq[t]
     end
-    for r in 1:length(v_seq)
-        r_seq[r] .= -control_covariance(model, r) \ v_seq[r]
-    end
     adjoint!(ȳ_seq, r_seq, model, dmodel, v_seq, x_seq, dȳ_seq)
+    for r in 1:length(v_seq)
+        r_seq[r] .-= control_covariance(model, r) \ v_seq[r]
+    end
     foreach(copyto!, p_seq, r_seq)
     rr = inner(r_seq, r_seq)
     for _ in 1:method.inner_iterations
