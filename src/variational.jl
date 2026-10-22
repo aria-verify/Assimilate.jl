@@ -26,7 +26,7 @@ function assimilate!(method::Incremental4DVar, model, v_seq, y_seq)
     return negative_log_density(y_seq, ȳ_seq, v_seq, model)
 end
 
-function tangent_linear_model!(ȳ_seq, dȳ_seq, model, dmodel, v_seq, dv_seq, x_seq)
+function tlm_simulate!(ȳ_seq, dȳ_seq, model, dmodel, v_seq, dv_seq, x_seq)
     subwindow_length = check_args_and_get_subwindow_length(x_seq, dȳ_seq, v_seq)
     Enzyme.remake_zero!(dmodel)
     restore_state!(model, x_seq[1])
@@ -48,7 +48,7 @@ function tangent_linear_model!(ȳ_seq, dȳ_seq, model, dmodel, v_seq, dv_seq, x
     return nothing
 end
 
-function adjoint!(ȳ_seq, dv_seq, model, dmodel, v_seq, x_seq, dȳ_seq)
+function adjoint_simulate!(ȳ_seq, dv_seq, model, dmodel, v_seq, x_seq, dȳ_seq)
     subwindow_length = check_args_and_get_subwindow_length(x_seq, dȳ_seq, v_seq)
     Enzyme.remake_zero!(dmodel)
     for r in length(x_seq):-1:1
@@ -71,11 +71,11 @@ function adjoint!(ȳ_seq, dv_seq, model, dmodel, v_seq, x_seq, dȳ_seq)
 end
 
 function gauss_newton_product!(q_seq, ȳ_seq, dȳ_seq, model, dmodel, v_seq, x_seq, p_seq)
-    tangent_linear_model!(ȳ_seq, dȳ_seq, model, dmodel, v_seq, p_seq, x_seq)
+    tlm_simulate!(ȳ_seq, dȳ_seq, model, dmodel, v_seq, p_seq, x_seq)
     for t in 1:length(dȳ_seq)
         dȳ_seq[t] .= observation_covariance(model, t) \ dȳ_seq[t]
     end
-    adjoint!(ȳ_seq, q_seq, model, dmodel, v_seq, x_seq, dȳ_seq)
+    adjoint_simulate!(ȳ_seq, q_seq, model, dmodel, v_seq, x_seq, dȳ_seq)
     for r in 1:length(v_seq)
         q_seq[r] .+= control_covariance(model, r) \ p_seq[r]
     end
@@ -96,7 +96,7 @@ function solve_for_increment!(
         dȳ_seq[t] .= y_seq[t] .- ȳ_seq[t]
         dȳ_seq[t] .= observation_covariance(model, t) \ dȳ_seq[t]
     end
-    adjoint!(ȳ_seq, r_seq, model, dmodel, v_seq, x_seq, dȳ_seq)
+    adjoint_simulate!(ȳ_seq, r_seq, model, dmodel, v_seq, x_seq, dȳ_seq)
     for r in 1:length(v_seq)
         r_seq[r] .-= control_covariance(model, r) \ v_seq[r]
     end
