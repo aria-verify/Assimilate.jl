@@ -53,7 +53,7 @@ function LinearGaussianModel(
     )
 end
 
-function stochastically_driven_dsho_model_parameters(δ=0.2, ω=1.0, Q=2.0, σ=0.5)
+function stochastically_driven_dsho_model(δ=0.2, ω=1.0, Q=2.0, σ=0.5, n_timestep_per_obs=1)
     β = sqrt(Q^2 - 1 / 4)
     state_transition_matrix =
         exp(-ω * δ / 2Q) * [
@@ -79,6 +79,7 @@ function stochastically_driven_dsho_model_parameters(δ=0.2, ω=1.0, Q=2.0, σ=0
         initial_state_covariance,
         state_noise_covariance,
         observation_noise_covariance,
+        n_timestep_per_obs,
     )
 end
 
