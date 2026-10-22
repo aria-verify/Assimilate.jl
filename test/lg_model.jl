@@ -111,12 +111,23 @@ function Assimilate.control_dimension(model::LinearGaussianModel, t)
     end
 end
 
+function enzyme_compat_unwhiten!(r::AbstractVecOrMat, a::AbstractPDMat, x::AbstractVecOrMat)
+    # Currently applying forward-mode differentiation through PDMats.unwhiten! using Enzyme
+    # hits against an error 'cannot handle blas argument within trmv...' with `trmv`
+    # corresponding to the BLAS triangular matrix - vector multiply function - see
+    # https://github.com/EnzymeAD/Enzyme.jl/issues/2618 for related issue
+    # To work around this we extract triangular Cholesky factor as a dense array and
+    # multiply by this instead which incurs an overhead for copying array but still
+    # reuses the cached Cholesky factorization to avoid repeatedly refactoring
+    return mul!(r, Array(cholesky(a).L), x)
+end
+
 function Assimilate.update!(model::LinearGaussianModel, v, t)
     if t == 1
-        unwhiten!(model.state, model.initial_state_covariance, v)
+        enzyme_compat_unwhiten!(model.state, model.initial_state_covariance, v)
         model.state .+= model.initial_state_mean
     else
-        unwhiten!(model.state_buffer, model.state_noise_covariance, v)
+        enzyme_compat_unwhiten!(model.state_buffer, model.state_noise_covariance, v)
         model.state .+= model.state_buffer
     end
     return nothing
