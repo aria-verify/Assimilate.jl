@@ -6,8 +6,9 @@ using Random
 const RANDOM_SEED = 21983612651875
 
 include("nsks_model.jl")
+include("lg_model.jl")
 
-function make_test_ssm()
+function make_test_nsks_ssm()
     n_timestep_per_obs = 100
     timestep = 0.001
     observation_points = collect((0:1:31) * π)
@@ -35,8 +36,11 @@ end
     @testset "Code quality (Aqua.jl)" begin
         Aqua.test_all(Assimilate)
     end
-    @testset "Model interface for T=$(n_observation_time)" for n_observation_time in [1, 10]
-        model = make_test_ssm()
+    @testset "$(
+        "Model interface with $(model) for T=$(n_observation_time)"
+    )" for n_observation_time in [1, 10],
+        model in [make_test_nsks_ssm(), stochastically_driven_dsho_model()]
+
         @test Assimilate.control_dimension(model, 1) isa Int
         @test Assimilate.control_dimension(model, 1) > 0
         @test Assimilate.observation_dimension(model, 1) isa Int
