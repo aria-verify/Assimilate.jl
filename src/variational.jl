@@ -12,7 +12,6 @@ struct Incremental4DVar{T,V,X,Y,M} <: AbstractAssimilationMethod
     p_seq::Vector{V}
     q_seq::Vector{V}
     r_seq::Vector{V}
-    r_new_seq::Vector{V}
 end
 
 function assimilate!(method::Incremental4DVar, model, v_seq, y_seq)
