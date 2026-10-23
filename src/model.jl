@@ -87,7 +87,7 @@ sequence `v_seq` have consistent lengths and compute and return the length of th
 subwindow length.
 """
 function check_args_and_get_subwindow_length(
-    x_seq::AbstractVector, ȳ_seq::AbstractVector, v_seq::AbstractVector
+    v_seq::AbstractVector, x_seq::AbstractVector, ȳ_seq::AbstractVector
 )
     !isnothing(x_seq) && @assert length(x_seq) == length(v_seq)
     subwindow_length, remainder = divrem(length(ȳ_seq), length(v_seq))
@@ -102,7 +102,7 @@ observation times as there are entries in `ȳ_subseq`, with the observation mean
 for each time index being written in place to `ȳ_subseq`.
 """
 function simulate_subwindow!(
-    model::AbstractStateSpaceModel, ȳ_subseq::AbstractVector{Y}, v::V, t::Int
+    model::AbstractStateSpaceModel, v::V, ȳ_subseq::AbstractVector{Y}, t::Int
 ) where {V,Y}
     update!(model, v, t)
     for s in 1:length(ȳ_subseq)
@@ -123,16 +123,16 @@ to the model state. States and observation means are written in place to `x_seq`
 `ȳ_seq` and `model` is updated in place.
 """
 function simulate!(
-    x_seq::AbstractVector,
-    ȳ_seq::AbstractVector,
     model::AbstractStateSpaceModel,
     v_seq::AbstractVector,
+    x_seq::AbstractVector,
+    ȳ_seq::AbstractVector,
 )
-    subwindow_length = check_args_and_get_subwindow_length(x_seq, ȳ_seq, v_seq)
+    subwindow_length = check_args_and_get_subwindow_length(v_seq, x_seq, ȳ_seq)
     for r in 1:length(x_seq)
         t = (r - 1) * subwindow_length + 1
         x_seq[r] = deepcopy(state(model))
-        simulate_subwindow!(model, view(ȳ_seq, t:(t + subwindow_length - 1)), v_seq[r], t)
+        simulate_subwindow!(model, v_seq[r], view(ȳ_seq, t:(t + subwindow_length - 1)), t)
     end
     return nothing
 end
@@ -145,12 +145,12 @@ between pairs of control variable updates to the model state. Observation means 
 in place to `ȳ_seq` and `model` is updated in place.
 """
 function simulate!(
-    ȳ_seq::AbstractVector, model::AbstractStateSpaceModel, v_seq::AbstractVector
+    model::AbstractStateSpaceModel, v_seq::AbstractVector, ȳ_seq::AbstractVector
 )
-    subwindow_length = check_args_and_get_subwindow_length(nothing, ȳ_seq, v_seq)
+    subwindow_length = check_args_and_get_subwindow_length(v_seq, nothing, ȳ_seq)
     for r in 1:length(v_seq)
         t = (r - 1) * subwindow_length + 1
-        simulate_subwindow!(model, view(ȳ_seq, t:(t + subwindow_length - 1)), v_seq[r], t)
+        simulate_subwindow!(model, v_seq[r], view(ȳ_seq, t:(t + subwindow_length - 1)), t)
     end
     return nothing
 end
@@ -161,10 +161,10 @@ vectors `y_seq` and control variable vectors `v_seq` for `model` given a precomp
 sequence of observation mean vectors `ȳ_seq`.
 """
 function negative_log_density(
+    model::AbstractStateSpaceModel,
+    v_seq::AbstractVector,
     y_seq::AbstractVector,
     ȳ_seq::AbstractVector,
-    v_seq::AbstractVector,
-    model::AbstractStateSpaceModel,
 )
     ℓ = 0.0
     for (t, v) in enumerate(v_seq)

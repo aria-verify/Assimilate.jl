@@ -18,12 +18,12 @@ end
 function assimilate!(method::Incremental4DVar, model, v_seq, y_seq)
     (; x_seq, ȳ_seq, dv_seq) = method
     for _ in 1:method.outer_iterations
-        simulate!(x_seq, ȳ_seq, model, v_seq)
+        simulate!(model, v_seq, x_seq, ȳ_seq, model)
         solve_for_increment!(method, dv_seq, model, v_seq, x_seq, ȳ_seq, y_seq)
         v_seq .+= dv_seq
     end
-    simulate!(x_seq, ȳ_seq, model, v_seq)
-    return negative_log_density(y_seq, ȳ_seq, v_seq, model)
+    simulate!(model, v_seq, x_seq, ȳ_seq)
+    return negative_log_density(model, v_seq, y_seq, ȳ_seq, v_seq)
 end
 
 function tlm_simulate!(ȳ_seq, dȳ_seq, model, dmodel, v_seq, dv_seq, x_seq)
@@ -37,11 +37,11 @@ function tlm_simulate!(ȳ_seq, dȳ_seq, model, dmodel, v_seq, dv_seq, x_seq)
             simulate_subwindow!,
             Const,
             Duplicated(model, dmodel),
+            Duplicated(v_seq[r], dv_seq[r]),
             Duplicated(
                 view(ȳ_seq, t:(t + subwindow_length - 1)),
                 view(dȳ_seq, t:(t + subwindow_length - 1)),
             ),
-            Duplicated(v_seq[r], dv_seq[r]),
             Const(t),
         )
     end
@@ -59,11 +59,11 @@ function adjoint_simulate!(ȳ_seq, dv_seq, model, dmodel, v_seq, x_seq, dȳ_seq
             simulate_subwindow!,
             Const,
             Duplicated(model, dmodel),
+            Duplicated(v_seq[r], dv_seq[r]),
             Duplicated(
                 view(ȳ_seq, t:(t + subwindow_length - 1)),
                 view(dȳ_seq, t:(t + subwindow_length - 1)),
             ),
-            Duplicated(v_seq[r], dv_seq[r]),
             Const(t),
         )
     end

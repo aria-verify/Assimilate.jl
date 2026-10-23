@@ -32,6 +32,17 @@ function make_test_nsks_ssm()
     )
 end
 
+function setup_model_arrays(n_observation_time, model, rng)
+    v_seq = [
+        randn(rng, Assimilate.control_dimension(model, t)) for t in 1:n_observation_time
+    ]
+    x_seq = Vector{typeof(Assimilate.state(model))}(undef, n_observation_time)
+    ȳ_seq = [
+        zeros(Assimilate.observation_dimension(model, t)) for t in 1:n_observation_time
+    ]
+    return v_seq, x_seq, ȳ_seq
+end
+
 @testset "Assimilate.jl" begin
     @testset "Code quality (Aqua.jl)" begin
         Aqua.test_all(Assimilate)
@@ -46,20 +57,14 @@ end
         @test Assimilate.observation_dimension(model, 1) isa Int
         @test Assimilate.observation_dimension(model, 1) > 0
         rng = Xoshiro(RANDOM_SEED)
-        v_seq = [
-            randn(rng, Assimilate.control_dimension(model, t)) for t in 1:n_observation_time
-        ]
-        x_seq = Vector{typeof(Assimilate.state(model))}(undef, n_observation_time)
-        ȳ_seq = [
-            zeros(Assimilate.observation_dimension(model, t)) for t in 1:n_observation_time
-        ]
-        Assimilate.simulate!(x_seq, ȳ_seq, model, v_seq)
+        v_seq, x_seq, ȳ_seq = setup_model_arrays(n_observation_time, model, rng)
+        Assimilate.simulate!(model, v_seq, x_seq, ȳ_seq)
         @test any(any(y .!= 0) for y in ȳ_seq)
         y_seq = [
             ȳ + randn(rng, Assimilate.observation_dimension(model, t)) for
             (t, ȳ) in enumerate(ȳ_seq)
         ]
-        nld = Assimilate.negative_log_density(y_seq, ȳ_seq, v_seq, model)
+        nld = Assimilate.negative_log_density(model, v_seq, y_seq, ȳ_seq)
         @test nld > 0
     end
 end
