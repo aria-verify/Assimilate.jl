@@ -20,7 +20,6 @@ struct LinearGaussianModel{
     initial_state_covariance::I
     state_noise_covariance::N
     observation_noise_covariance::R
-    n_timestep_per_obs::Int
 end
 
 function LinearGaussianModel(
@@ -30,7 +29,6 @@ function LinearGaussianModel(
     initial_state_covariance::AbstractMatrix{T},
     state_noise_covariance::AbstractMatrix{T},
     observation_noise_covariance::AbstractMatrix{T},
-    n_timestep_per_obs::Int=1,
 ) where {T}
     state_dimension = size(state_transition_matrix, 1)
     @assert size(state_transition_matrix, 2) == state_dimension
@@ -49,11 +47,10 @@ function LinearGaussianModel(
         initial_state_covariance,
         state_noise_covariance,
         observation_noise_covariance,
-        n_timestep_per_obs,
     )
 end
 
-function stochastically_driven_dsho_model(δ=0.2, ω=1.0, Q=2.0, σ=0.5, n_timestep_per_obs=1)
+function stochastically_driven_dsho_model(δ=0.2, ω=1.0, Q=2.0, σ=0.5)
     β = sqrt(Q^2 - 1 / 4)
     state_transition_matrix =
         exp(-ω * δ / 2Q) * [
@@ -79,7 +76,6 @@ function stochastically_driven_dsho_model(δ=0.2, ω=1.0, Q=2.0, σ=0.5, n_times
         initial_state_covariance,
         state_noise_covariance,
         observation_noise_covariance,
-        n_timestep_per_obs,
     )
 end
 
@@ -93,10 +89,8 @@ function Assimilate.restore_state!(model::LinearGaussianModel, state)
 end
 
 function Assimilate.step!(model::LinearGaussianModel, t)
-    for _ in 1:model.n_timestep_per_obs
-        mul!(model.state_buffer, model.state_transition_matrix, model.state, 1.0, 0.0)
-        model.state .= model.state_buffer
-    end
+    mul!(model.state_buffer, model.state_transition_matrix, model.state, 1.0, 0.0)
+    model.state .= model.state_buffer
     return nothing
 end
 
