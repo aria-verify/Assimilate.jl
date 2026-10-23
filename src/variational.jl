@@ -25,7 +25,7 @@ function assimilate!(method::Incremental4DVar, model, v_seq, y_seq)
     return negative_log_density(model, v_seq, y_seq, ȳ_seq, v_seq)
 end
 
-function tlm_simulate!(ȳ_seq, dȳ_seq, model, dmodel, v_seq, dv_seq, x_seq)
+function tlm_simulate!(model, dmodel, v_seq, dv_seq, x_seq, ȳ_seq, dȳ_seq)
     subwindow_length = check_args_and_get_subwindow_length(x_seq, dȳ_seq, v_seq)
     Enzyme.remake_zero!(dmodel)
     restore_state!(model, x_seq[1])
@@ -47,7 +47,7 @@ function tlm_simulate!(ȳ_seq, dȳ_seq, model, dmodel, v_seq, dv_seq, x_seq)
     return nothing
 end
 
-function adjoint_simulate!(ȳ_seq, dv_seq, model, dmodel, v_seq, x_seq, dȳ_seq)
+function adjoint_simulate!(model, dmodel, v_seq, dv_seq, x_seq, ȳ_seq, dȳ_seq)
     subwindow_length = check_args_and_get_subwindow_length(x_seq, dȳ_seq, v_seq)
     Enzyme.remake_zero!(dmodel)
     for r in length(x_seq):-1:1
@@ -69,14 +69,16 @@ function adjoint_simulate!(ȳ_seq, dv_seq, model, dmodel, v_seq, x_seq, dȳ_seq
     return nothing
 end
 
-function gauss_newton_product!(q_seq, ȳ_seq, dȳ_seq, model, dmodel, v_seq, x_seq, p_seq)
-    tlm_simulate!(ȳ_seq, dȳ_seq, model, dmodel, v_seq, p_seq, x_seq)
+function gauss_newton_product!(
+    model, dmodel, v_seq, dv_seq_in, dv_seq_out, x_seq, ȳ_seq, dȳ_seq
+)
+    tlm_simulate!(model, dmodel, v_seq, dv_seq_in, x_seq, ȳ_seq, dȳ_seq)
     for t in 1:length(dȳ_seq)
         dȳ_seq[t] .= observation_covariance(model, t) \ dȳ_seq[t]
     end
-    adjoint_simulate!(ȳ_seq, q_seq, model, dmodel, v_seq, x_seq, dȳ_seq)
-    for r in 1:length(v_seq)
-        q_seq[r] .+= control_covariance(model, r) \ p_seq[r]
+    adjoint_simulate!(model, dmodel, v_seq, dv_seq_out, x_seq, ȳ_seq, dȳ_seq)
+    for r in 1:length(dv_seq_out)
+        dv_seq_out[r] .+= control_covariance(model, r) \ dv_seq_in[r]
     end
     return nothing
 end
@@ -102,7 +104,7 @@ function solve_for_increment!(
     foreach(copyto!, p_seq, r_seq)
     rr = inner(r_seq, r_seq)
     for _ in 1:method.inner_iterations
-        gauss_newton_product!(q_seq, ȳ_seq, dȳ_seq, model, dmodel, v_seq, x_seq, p_seq)
+        gauss_newton_product!(model, dmodel, v_seq, p_seq, q_seq, x_seq, ȳ_seq, dȳ_seq)
         α = rr / inner(p_seq, q_seq)
         axpy_seq!(dv_seq, α, p_seq)
         axpy_seq!(r_seq, -α, q_seq)
