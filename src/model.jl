@@ -86,7 +86,9 @@ Check state sequence `x_seq`, observation mean sequence `ȳ_seq` and control ve
 sequence `v_seq` have consistent lengths and compute and return the length of the
 subwindow length.
 """
-function check_args_and_get_subwindow_length(x_seq, ȳ_seq, v_seq)
+function check_args_and_get_subwindow_length(
+    x_seq::AbstractVector, ȳ_seq::AbstractVector, v_seq::AbstractVector
+)
     !isnothing(x_seq) && @assert length(x_seq) == length(v_seq)
     subwindow_length, remainder = divrem(length(ȳ_seq), length(v_seq))
     @assert remainder == 0
@@ -99,7 +101,9 @@ its state in place using control variable vector `v` and simulating for as many
 observation times as there are entries in `ȳ_subseq`, with the observation means
 for each time index being written in place to `ȳ_subseq`.
 """
-function simulate_subwindow!(model, ȳ_subseq::AbstractVector{Y}, v::V, t::Int) where {V,Y}
+function simulate_subwindow!(
+    model::AbstractStateSpaceModel, ȳ_subseq::AbstractVector{Y}, v::V, t::Int
+) where {V,Y}
     update!(model, v, t)
     for s in 1:length(ȳ_subseq)
         observe!(ȳ_subseq[s], model, t + s - 1)
@@ -118,7 +122,12 @@ multiple corresponding to the subwindow length between pairs of control variable
 to the model state. States and observation means are written in place to `x_seq` and
 `ȳ_seq` and `model` is updated in place.
 """
-function simulate!(x_seq, ȳ_seq, model, v_seq)
+function simulate!(
+    x_seq::AbstractVector,
+    ȳ_seq::AbstractVector,
+    model::AbstractStateSpaceModel,
+    v_seq::AbstractVector,
+)
     subwindow_length = check_args_and_get_subwindow_length(x_seq, ȳ_seq, v_seq)
     for r in 1:length(x_seq)
         t = (r - 1) * subwindow_length + 1
@@ -132,10 +141,12 @@ end
 Simulate a sequence of observation mean vectors `ȳ_seq` for `model` given a sequence of
 control variable vectors `v_seq`. The length of `ȳ_seq` should be an integer multiple of
 the length of `v_seq`, with this integer multiple corresponding to the subwindow length
-between pairs of control variable updates to the model state. Observation means are written 
+between pairs of control variable updates to the model state. Observation means are written
 in place to `ȳ_seq` and `model` is updated in place.
 """
-function simulate!(ȳ_seq, model, v_seq)
+function simulate!(
+    ȳ_seq::AbstractVector, model::AbstractStateSpaceModel, v_seq::AbstractVector
+)
     subwindow_length = check_args_and_get_subwindow_length(nothing, ȳ_seq, v_seq)
     for r in 1:length(v_seq)
         t = (r - 1) * subwindow_length + 1
@@ -149,7 +160,12 @@ Compute the negative log density of the joint distribution on the sequence of ob
 vectors `y_seq` and control variable vectors `v_seq` for `model` given a precomputed
 sequence of observation mean vectors `ȳ_seq`.
 """
-function negative_log_density(y_seq, ȳ_seq, v_seq, model)
+function negative_log_density(
+    y_seq::AbstractVector,
+    ȳ_seq::AbstractVector,
+    v_seq::AbstractVector,
+    model::AbstractStateSpaceModel,
+)
     ℓ = 0.0
     for (t, v) in enumerate(v_seq)
         ℓ += v' * (control_covariance(model, t) \ v) / 2
