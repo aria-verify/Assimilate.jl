@@ -19,7 +19,7 @@ function assimilate!(method::Incremental4DVar, model, v_seq, y_seq)
     for _ in 1:method.outer_iterations
         simulate!(model, v_seq, x_seq, ȳ_seq, model)
         solve_for_increment!(method, dv_seq, model, v_seq, x_seq, ȳ_seq, y_seq)
-        v_seq .+= dv_seq
+        v_seq .-= dv_seq
     end
     simulate!(model, v_seq, x_seq, ȳ_seq)
     return negative_log_density(model, v_seq, y_seq, ȳ_seq, v_seq)
@@ -83,24 +83,29 @@ function gauss_newton_product!(
     return nothing
 end
 
+function grad_negative_log_density!(model, dmodel, v_seq, dv_seq, x_seq, ȳ_seq, dȳ_seq, y_seq)
+    Enzyme.remake_zero!(dmodel)
+    zero_seq!(dv_seq)
+    for t in 1:length(y_seq)
+        dȳ_seq[t] .= ȳ_seq[t] .- y_seq[t]
+        dȳ_seq[t] .= observation_covariance(model, t) \ dȳ_seq[t]
+    end
+    adjoint_simulate!(model, dmodel, v_seq, dv_seq, x_seq, ȳ_seq, dȳ_seq)
+    for r in 1:length(v_seq)
+        dv_seq[r] .+= control_covariance(model, r) \ v_seq[r]
+    end
+end
+
 inner(v_a::Vector{T}, v_b::Vector{T}) where {T} = sum(((a, b),) -> a' * b, zip(v_a, v_b))
+zero_seq!(x) = foreach(xi -> xi .= 0.0, x)
 axpy_seq!(y, a, x) = foreach((yi, xi) -> (yi .+= a .* xi), y, x)
 
 function solve_for_increment!(
     method::Incremental4DVar, dv_seq, model, v_seq, x_seq, ȳ_seq, y_seq
 )
-    (; p_seq, q_seq, r_seq, r_new_seq, dmodel, dȳ_seq) = method
-    for r in 1:length(dv_seq)
-        dv_seq[r] .= 0.0
-    end
-    for t in 1:length(y_seq)
-        dȳ_seq[t] .= y_seq[t] .- ȳ_seq[t]
-        dȳ_seq[t] .= observation_covariance(model, t) \ dȳ_seq[t]
-    end
-    adjoint_simulate!(ȳ_seq, r_seq, model, dmodel, v_seq, x_seq, dȳ_seq)
-    for r in 1:length(v_seq)
-        r_seq[r] .-= control_covariance(model, r) \ v_seq[r]
-    end
+    (; p_seq, q_seq, r_seq, dmodel, dȳ_seq) = method
+    zero_seq!(dv_seq)
+    grad_negative_log_density!(model, dmodel, v_seq, r_seq, x_seq, ȳ_seq, dȳ_seq, y_seq)
     foreach(copyto!, p_seq, r_seq)
     rr = inner(r_seq, r_seq)
     for _ in 1:method.inner_iterations
