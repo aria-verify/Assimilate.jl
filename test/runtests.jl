@@ -36,11 +36,17 @@ function setup_model_arrays(n_observation_time, model, rng)
     v_seq = [
         randn(rng, Assimilate.control_dimension(model, t)) for t in 1:n_observation_time
     ]
+    w_seq = [
+        randn(rng, Assimilate.observation_dimension(model, t)) for t in 1:n_observation_time
+    ]
     x_seq = Vector{typeof(Assimilate.state(model))}(undef, n_observation_time)
     ȳ_seq = [
         zeros(Assimilate.observation_dimension(model, t)) for t in 1:n_observation_time
     ]
-    return v_seq, x_seq, ȳ_seq
+    y_seq = [
+        zeros(Assimilate.observation_dimension(model, t)) for t in 1:n_observation_time
+    ]
+    return v_seq, w_seq, x_seq, ȳ_seq, y_seq
 end
 
 @testset "Assimilate.jl" begin
@@ -48,7 +54,7 @@ end
         Aqua.test_all(Assimilate)
     end
     @testset "$(
-        "Model interface with $(model) for T=$(n_observation_time)"
+        "Model interface with $(summary(model)) for T=$(n_observation_time)"
     )" for n_observation_time in [1, 10],
         model in [make_test_nsks_ssm(), stochastically_driven_dsho_model()]
 
@@ -57,13 +63,11 @@ end
         @test Assimilate.observation_dimension(model, 1) isa Int
         @test Assimilate.observation_dimension(model, 1) > 0
         rng = Xoshiro(RANDOM_SEED)
-        v_seq, x_seq, ȳ_seq = setup_model_arrays(n_observation_time, model, rng)
-        Assimilate.simulate!(model, v_seq, x_seq, ȳ_seq)
+        v_seq, w_seq, x_seq, ȳ_seq, y_seq = setup_model_arrays(
+            n_observation_time, model, rng
+        )
+        Assimilate.simulate!(model, v_seq, w_seq, x_seq, ȳ_seq, y_seq)
         @test any(any(y .!= 0) for y in ȳ_seq)
-        y_seq = [
-            ȳ + randn(rng, Assimilate.observation_dimension(model, t)) for
-            (t, ȳ) in enumerate(ȳ_seq)
-        ]
         nld = Assimilate.negative_log_density(model, v_seq, y_seq, ȳ_seq)
         @test nld > 0
     end
