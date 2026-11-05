@@ -178,6 +178,16 @@ function NSKSStateSpaceModel(
     )
 end
 
+function Base.summary(model::NSKSStateSpaceModel)
+    underlying_model_str = summary(model.underlying_model)
+    return """
+        NSKSStateSpaceModel
+        ├── $(model.n_timestep_per_obs) timesteps of $(model.timestep) per observation
+        ├── observations at $(length(model.observation_points)) points with noise std $(model.observation_noise_std)
+        └── wrapping $underlying_model_str
+        """
+end
+
 function Assimilate.state(model::NSKSStateSpaceModel)
     return (; solution=model.underlying_model.solution, clock=model.underlying_model.clock)
 end
