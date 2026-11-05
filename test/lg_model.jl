@@ -138,5 +138,5 @@ function Assimilate.observation_covariance(model::LinearGaussianModel{T}, t) whe
 end
 
 function Assimilate.control_covariance(model::LinearGaussianModel{T}, t) where {T}
-    return UniformScaling{T}(1.0)
+    return ScalMat{T}(Assimilate.control_dimension(model, t), 1.0)
 end

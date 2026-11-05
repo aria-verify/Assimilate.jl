@@ -226,9 +226,11 @@ function Assimilate.observe!(y, model::NSKSStateSpaceModel, t)
 end
 
 function Assimilate.observation_covariance(model::NSKSStateSpaceModel{M,T}, t) where {M,T}
-    return UniformScaling{T}(model.observation_noise_std^2)
+    return ScalMat{T}(
+        Assimilate.observation_dimension(model, t), model.observation_noise_std^2
+    )
 end
 
 function Assimilate.control_covariance(model::NSKSStateSpaceModel{M,T}, t) where {M,T}
-    return UniformScaling{T}(1.0)
+    return ScalMat{T}(Assimilate.control_dimension(model, t), 1.0)
 end
