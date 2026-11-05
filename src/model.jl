@@ -113,26 +113,55 @@ function simulate_subwindow!(
 end
 
 """
-Simulate a sequence of states `x_seq` and observation mean vectors `ȳ_seq` for `model`
-given a sequence of control variable vectors `v_seq`. The lengths of `x_seq` and `v_seq`
-should match, with `x_seq[t]` the model state immediately _prior_ to updating with
-control variable vector `v_seq[t]` at time index `t`. The length of `ȳ_seq`
-should be an integer multiple of the length of `v_seq` and `x_seq`, with this integer
-multiple corresponding to the subwindow length between pairs of control variable updates
-to the model state. States and observation means are written in place to `x_seq` and
-`ȳ_seq` and `model` is updated in place.
+Simulate a sequence of observation mean vectors `ȳ_seq` and, optionally, states `x_seq`,
+for `model` given a sequence of control variable vectors `v_seq`. If `x_seq` is not
+`nothing` the lengths of `x_seq` and `v_seq` should match, with on return `x_seq[t]`
+the model state immediately _prior_ to updating with control variable vector `v_seq[t]`
+at time index `t`. The length of `ȳ_seq` should be an integer multiple of the length of
+`v_seq` and `x_seq`, with this integer multiple corresponding to the subwindow length
+between pairs of control variable updates to the model state. States and observation
+means are written in place to `x_seq` and `ȳ_seq` and `model` is updated in place.
 """
 function simulate!(
     model::AbstractStateSpaceModel,
     v_seq::AbstractVector,
-    x_seq::AbstractVector,
+    x_seq::Union{Nothing,AbstractVector},
     ȳ_seq::AbstractVector,
 )
     subwindow_length = check_args_and_get_subwindow_length(v_seq, x_seq, ȳ_seq)
     for r in 1:length(x_seq)
         t = (r - 1) * subwindow_length + 1
-        x_seq[r] = deepcopy(state(model))
+        !isnothing(x_seq) && (x_seq[r] = deepcopy(state(model)))
         simulate_subwindow!(model, v_seq[r], view(ȳ_seq, t:(t + subwindow_length - 1)), t)
+    end
+    return nothing
+end
+
+"""
+Simulate a sequence of observation mean vectors `ȳ_seq`, observation vectors
+`y_seq` and, optionally, states `x_seq`, for `model` given a sequence of control
+variable vectors `v_seq` and observation noise vectors `w_seq`. If `x_seq` is
+not `nothing` the lengths of `x_seq` and `v_seq` should match, with on return
+`x_seq[t]` the model state immediately _prior_ to updating with control variable
+vector `v_seq[t]` at time index `t`. The length of `ȳ_seq` should be an integer
+multiple of the length of `v_seq` and `x_seq`, and should match `y_seq` and
+`w_seq`, with this integer multiple corresponding to the subwindow length
+between pairs of control variable updates to the model state. States and
+observation means are written in place to `x_seq` and `ȳ_seq` and `model` is
+updated in place.
+"""
+function simulate!(
+    model::AbstractStateSpaceModel,
+    v_seq::AbstractVector,
+    w_seq::AbstractVector,
+    x_seq::Union{Nothing,AbstractVector},
+    ȳ_seq::AbstractVector,
+    y_seq::AbstractVector,
+)
+    @assert length(w_seq) == length(y_seq) == length(ȳ_seq)
+    simulate!(model, v_seq, x_seq, ȳ_seq)
+    for t in 1:length(y_seq)
+        y_seq[t] .= ȳ_seq[t] .+ cholesky(observation_covariance(model, t)).L * w_seq[t]
     end
     return nothing
 end
@@ -147,12 +176,7 @@ in place to `ȳ_seq` and `model` is updated in place.
 function simulate!(
     model::AbstractStateSpaceModel, v_seq::AbstractVector, ȳ_seq::AbstractVector
 )
-    subwindow_length = check_args_and_get_subwindow_length(v_seq, nothing, ȳ_seq)
-    for r in 1:length(v_seq)
-        t = (r - 1) * subwindow_length + 1
-        simulate_subwindow!(model, v_seq[r], view(ȳ_seq, t:(t + subwindow_length - 1)), t)
-    end
-    return nothing
+    return simulate!(model, v_seq, ȳ_seq)
 end
 
 """

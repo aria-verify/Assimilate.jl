@@ -1,6 +1,7 @@
 "Julia implementations of data assimilation algorithms."
 module Assimilate
 
+using LinearAlgebra
 using DocStringExtensions
 
 include("model.jl")
