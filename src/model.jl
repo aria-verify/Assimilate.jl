@@ -87,7 +87,7 @@ sequence `v_seq` have consistent lengths and compute and return the length of th
 subwindow length.
 """
 function check_args_and_get_subwindow_length(
-    v_seq::AbstractVector, x_seq::AbstractVector, ȳ_seq::AbstractVector
+    v_seq::AbstractVector, x_seq::Union{Nothing,AbstractVector}, ȳ_seq::AbstractVector
 )
     !isnothing(x_seq) && @assert length(x_seq) == length(v_seq)
     subwindow_length, remainder = divrem(length(ȳ_seq), length(v_seq))
@@ -129,7 +129,7 @@ function simulate!(
     ȳ_seq::AbstractVector,
 )
     subwindow_length = check_args_and_get_subwindow_length(v_seq, x_seq, ȳ_seq)
-    for r in 1:length(x_seq)
+    for r in 1:length(v_seq)
         t = (r - 1) * subwindow_length + 1
         !isnothing(x_seq) && (x_seq[r] = deepcopy(state(model)))
         simulate_subwindow!(model, v_seq[r], view(ȳ_seq, t:(t + subwindow_length - 1)), t)
