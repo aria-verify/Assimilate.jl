@@ -1,4 +1,5 @@
 using Assimilate
+using Enzyme
 using Test
 using Aqua
 using Random
@@ -70,5 +71,32 @@ end
         @test any(any(y .!= 0) for y in ȳ_seq)
         nld = Assimilate.negative_log_density(model, v_seq, y_seq, ȳ_seq)
         @test nld > 0
+    end
+    @testset "Test log density gradient" for n_observation_time in [1, 10]
+        model = stochastically_driven_dsho_model()
+        rng = Xoshiro(RANDOM_SEED)
+        v_seq, w_seq, x_seq, ȳ_seq, y_seq = setup_model_arrays(
+            n_observation_time, model, rng
+        )
+        Assimilate.simulate!(model, v_seq, w_seq, x_seq, ȳ_seq, y_seq)
+        dmodel = Enzyme.make_zero(model)
+        dv_seq = Enzyme.make_zero(v_seq)
+        dy_seq = Enzyme.make_zero(y_seq)
+        Enzyme.autodiff(
+            Reverse,
+            Assimilate.negative_log_density,
+            Active,
+            Duplicated(model, dmodel),
+            Duplicated(v_seq, dv_seq),
+            Duplicated(y_seq, dy_seq),
+        )
+        model_2 = stochastically_driven_dsho_model()
+        dmodel_2 = Enzyme.make_zero(model_2)
+        dv_seq_2 = Enzyme.make_zero(v_seq)
+        dȳ_seq_2 = Enzyme.make_zero(ȳ_seq)
+        Assimilate.grad_negative_log_density!(
+            model_2, dmodel_2, v_seq, dv_seq_2, x_seq, ȳ_seq, dȳ_seq_2, y_seq
+        )
+        @test maximum(norm.(dv_seq .- dv_seq_2, Inf)) < 1e-12
     end
 end
