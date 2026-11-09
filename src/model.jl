@@ -200,3 +200,17 @@ function negative_log_density(
     end
     return ℓ
 end
+
+"""
+Compute the negative log density of the joint distribution on the sequence of observed
+vectors `y_seq` and control variable vectors `v_seq` for `model`. Allocates a buffer
+to store observation means and simulates `model` using `simulate!` given `v_seq`
+to compute observation means.
+"""
+function negative_log_density(
+    model::AbstractStateSpaceModel, v_seq::AbstractVector, y_seq::AbstractVector
+)
+    ȳ_seq = similar.(y_seq)
+    simulate!(model, v_seq, ȳ_seq)
+    return negative_log_density(model, v_seq, y_seq, ȳ_seq)
+end
