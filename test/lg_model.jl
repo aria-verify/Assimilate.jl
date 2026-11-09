@@ -11,7 +11,7 @@ struct LinearGaussianModel{
     I<:AbstractPDMat{T},
     N<:AbstractPDMat{T},
     R<:AbstractPDMat{T},
-} <: Assimilate.AbstractStateSpaceModel
+} <: Assimilate.AbstractStateSpaceModel{T}
     state::Vector{T}
     state_buffer::Vector{T}
     state_transition_matrix::S
@@ -50,17 +50,17 @@ function LinearGaussianModel(
     )
 end
 
-function stochastically_driven_dsho_model(δ=0.2, ω=1.0, Q=2.0, σ=0.5)
+function stochastically_driven_dsho_model(δ=0.2, ω=1.0, Q=2.0, σ=0.5; T=Float64)
     β = sqrt(Q^2 - 1 / 4)
     state_transition_matrix =
-        exp(-ω * δ / 2Q) * [
+        T(exp(-ω * δ / 2Q)) * T[
             cos(ω * β * δ / Q) + sin(ω * β * δ / Q) / 2β Q * sin(ω * β * δ / Q) / (ω * β)
             -Q * ω * sin(ω * δ * β / Q) / β cos(ω * δ * β / Q) - sin(ω * δ * β / Q) / 2β
         ]
-    observation_matrix = ScalMat(2, 1.0)
-    initial_state_mean = zeros(2)
-    initial_state_covariance = ScalMat(2, 1.0)
-    state_noise_covariance = PDMat(
+    observation_matrix = ScalMat{T}(2, 1.0)
+    initial_state_mean = zeros(T, 2)
+    initial_state_covariance = ScalMat{T}(2, 1.0)
+    state_noise_covariance = PDMat{T}(
         Q *
         exp(-ω * δ / Q) *
         [
@@ -68,7 +68,7 @@ function stochastically_driven_dsho_model(δ=0.2, ω=1.0, Q=2.0, σ=0.5)
             Q * sin(ω * δ * β / Q)^2 / (2ω^2 * β^2) ((cos(2ω * δ * β / Q) - 1) + 2β * sin(2ω * δ * β / Q) + 4β^2 * (exp(ω * δ / Q) - 1)) / (8ω * β^2)
         ],
     )
-    observation_noise_covariance = ScalMat(2, σ^2)
+    observation_noise_covariance = ScalMat{T}(2, σ^2)
     return LinearGaussianModel(
         state_transition_matrix,
         observation_matrix,

@@ -1,7 +1,7 @@
 export simulate!, negative_log_density
 
 "Abstract base type for state space models that can assimilate observational data."
-abstract type AbstractStateSpaceModel end
+abstract type AbstractStateSpaceModel{T} end
 
 """
     $(FUNCTIONNAME)(model, t)
@@ -63,13 +63,6 @@ function restore_state! end
 """
     $(FUNCTIONNAME)(model)
 
-Get numeric element type for `model` state, observation and control variable vectors.
-"""
-function eltype end
-
-"""
-    $(FUNCTIONNAME)(model)
-
 Get observation vector dimension for `model`.
 """
 function observation_dimension end
@@ -80,6 +73,11 @@ function observation_dimension end
 Get control variable vector dimension for `model`.
 """
 function control_dimension end
+
+"""
+Get numeric element type for model state, observation and control variable vectors.
+"""
+Base.eltype(::AbstractStateSpaceModel{T}) where {T} = T
 
 """
 Check state sequence `x_seq`, observation mean sequence `ȳ_seq` and control vector
@@ -185,12 +183,12 @@ vectors `y_seq` and control variable vectors `v_seq` for `model` given a precomp
 sequence of observation mean vectors `ȳ_seq`.
 """
 function negative_log_density(
-    model::AbstractStateSpaceModel,
+    model::AbstractStateSpaceModel{T},
     v_seq::AbstractVector,
     y_seq::AbstractVector,
     ȳ_seq::AbstractVector,
-)
-    ℓ = 0.0
+) where {T}
+    ℓ = zero(T)
     for (t, v) in enumerate(v_seq)
         ℓ += v' * (control_covariance(model, t) \ v) / 2
     end

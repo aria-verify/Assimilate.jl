@@ -120,7 +120,7 @@ function time_step!(model::NSKSModel, Δt; callbacks=[])
     return nothing
 end
 
-struct NSKSStateSpaceModel{M,T,P,F,GI,GE} <: Assimilate.AbstractStateSpaceModel
+struct NSKSStateSpaceModel{M,T,P,F,GI,GE} <: Assimilate.AbstractStateSpaceModel{T}
     underlying_model::M
     n_timestep_per_obs::Int
     timestep::T
