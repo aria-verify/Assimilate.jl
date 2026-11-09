@@ -41,25 +41,33 @@ function make_test_ssms(floating_point_types=(Float32, Float64))
 end
 
 function setup_model_arrays(
-    n_observation_time, model::Assimilate.AbstractStateSpaceModel{T}, rng
+    n_observation_time,
+    model::Assimilate.AbstractStateSpaceModel{T},
+    rng;
+    include_w_and_y=true,
 ) where {T}
     v_seq = [
         randn(rng, T, Assimilate.control_dimension(model, t)) for t in 1:n_observation_time
     ]
-    w_seq = [
-        randn(rng, T, Assimilate.observation_dimension(model, t)) for
-        t in 1:n_observation_time
-    ]
+
     x_seq = Vector{typeof(Assimilate.state(model))}(undef, n_observation_time)
     ȳ_seq = [
         fill(T(NaN), Assimilate.observation_dimension(model, t)) for
         t in 1:n_observation_time
     ]
-    y_seq = [
-        fill(T(NaN), Assimilate.observation_dimension(model, t)) for
-        t in 1:n_observation_time
-    ]
-    return v_seq, w_seq, x_seq, ȳ_seq, y_seq
+    if !include_w_and_y
+        return v_seq, x_seq, ȳ_seq
+    else
+        w_seq = [
+            randn(rng, T, Assimilate.observation_dimension(model, t)) for
+            t in 1:n_observation_time
+        ]
+        y_seq = [
+            fill(T(NaN), Assimilate.observation_dimension(model, t)) for
+            t in 1:n_observation_time
+        ]
+        return v_seq, w_seq, x_seq, ȳ_seq, y_seq
+    end
 end
 
 @testset "Assimilate.jl" begin
@@ -109,6 +117,40 @@ end
         nld_2 = Assimilate.negative_log_density(model, v_seq, y_seq)
         @test nld_2 isa T
         @test nld_1 ≈ nld_2
+    end
+    @testset "Test simulate TLM" for n_observation_time in [1, 10]
+        model_1 = stochastically_driven_dsho_model()
+        model_2 = deepcopy(model_1)
+        rng = Xoshiro(RANDOM_SEED)
+        v_seq_1, x_seq_1, ȳ_seq_1 = setup_model_arrays(
+            n_observation_time, model_1, rng, include_w_and_y=false
+        )
+        dmodel_1 = Enzyme.make_zero(model_1)
+        dv_seq_1 = [
+            randn(rng, eltype(model_1), Assimilate.control_dimension(model_1, t)) for
+            t in 1:n_observation_time
+        ]
+        dx_seq_1 = Enzyme.make_zero(x_seq_1)
+        dȳ_seq_1 = Enzyme.make_zero(ȳ_seq_1)
+        Enzyme.autodiff(
+            Forward,
+            Assimilate.simulate!,
+            Const,
+            Duplicated(model_1, dmodel_1),
+            Duplicated(v_seq_1, dv_seq_1),
+            Duplicated(x_seq_1, dx_seq_1),
+            Duplicated(ȳ_seq_1, dȳ_seq_1),
+        )
+        v_seq_2 = deepcopy(v_seq_1)
+        dv_seq_2 = deepcopy(dv_seq_1)
+        x_seq_2 = similar.(x_seq_1)
+        ȳ_seq_2 = similar.(ȳ_seq_1)
+        dmodel_2 = Enzyme.make_zero(model_2)
+        dȳ_seq_2 = Enzyme.make_zero(ȳ_seq_2)
+        Assimilate.tlm_simulate!(
+            model_2, dmodel_2, v_seq_2, dv_seq_2, x_seq_2, ȳ_seq_2, dȳ_seq_2
+        )
+        @test maximum(norm.(dȳ_seq_1 .- dȳ_seq_2, Inf)) < 1e-12
     end
     @testset "Test log density gradient" for n_observation_time in [1, 10]
         model = stochastically_driven_dsho_model()
