@@ -176,7 +176,7 @@ in place to `ȳ_seq` and `model` is updated in place.
 function simulate!(
     model::AbstractStateSpaceModel, v_seq::AbstractVector, ȳ_seq::AbstractVector
 )
-    return simulate!(model, v_seq, ȳ_seq)
+    return simulate!(model, v_seq, nothing, ȳ_seq)
 end
 
 """
